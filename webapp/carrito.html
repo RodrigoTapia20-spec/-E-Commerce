@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Carrito — JJM con Causa</title>
+<link rel="stylesheet" href="css/styles.css"/>
+</head>
+<body data-pagina="carrito">
+<div id="jjm-header"></div>
+<main>
+
+<div class="contenedor">
+  <h2>🛒 Tu carrito</h2>
+  <div id="msg"></div>
+  <div class="dash" style="grid-template-columns:1fr 340px" id="layout">
+    <div id="lineas"></div>
+    <div>
+      <div class="tarjeta resumen" id="resumen"></div>
+      <div class="tarjeta oculto" id="datos-envio" style="margin-top:14px">
+        <strong>📍 Dirección de entrega</strong>
+        <label>Calle, número, colonia y ciudad</label><textarea id="direccion" placeholder="Ej. Av. Juárez 123, Col. Centro, Tecámac, Edo. Méx."></textarea>
+        <label>Código postal</label><input id="cp" maxlength="5" inputmode="numeric" style="width:120px"/>
+      </div>
+      <div class="tarjeta" style="margin-top:14px">
+        <label style="margin-top:0">Método de pago</label>
+        <div class="fila">
+          <label style="font-weight:400;display:flex;gap:6px;align-items:center;margin:0"><input type="radio" name="metodo" value="TARJETA_CREDITO" checked/> 💳 Tarjeta de crédito</label>
+          <label style="font-weight:400;display:flex;gap:6px;align-items:center;margin:0"><input type="radio" name="metodo" value="TARJETA_DEBITO"/> 💳 Tarjeta de débito</label>
+        </div>
+        <div style="margin-top:12px">
+          <label>Número de tarjeta</label>
+          <input id="tj-numero" inputmode="numeric" maxlength="19" placeholder="0000 0000 0000 0000" autocomplete="cc-number"/>
+          <label>Nombre en la tarjeta</label>
+          <input id="tj-nombre" placeholder="Como aparece en tu tarjeta" autocomplete="cc-name"/>
+          <div class="fila">
+            <div><label>Vencimiento (MM/AA)</label><input id="tj-venc" placeholder="MM/AA" maxlength="5" autocomplete="cc-exp"/></div>
+            <div><label>CVV</label><input id="tj-cvv" inputmode="numeric" maxlength="4" placeholder="123" autocomplete="cc-csc"/></div>
+          </div>
+          <div id="tjmsg"></div>
+        </div>
+        <button class="btn btn-primario btn-bloque" id="btn-pagar">Pagar ahora</button>
+        <div class="ayuda" style="margin-top:8px">Pago simulado (modo demostración): no se realiza ningún cargo real. Tu número completo y CVV nunca se envían ni se guardan; sólo se registra la marca y los últimos 4 dígitos como referencia.</div>
+      </div>
+    </div>
+  </div>
+  <div id="confirmacion"></div>
+</div>
+
+</main>
+<div id="jjm-footer"></div>
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/carrito.js"></script>
+<script src="js/chatbot.js"></script>
+<script>
+
+function pintar() {
+  const items = Carrito.obtener();
+  const cont = document.getElementById("lineas");
+  document.getElementById("datos-envio").classList.toggle("oculto", !Carrito.hayFisicos());
+  if (!items.length) {
+    cont.innerHTML = `<div class="tarjeta">Tu carrito está vacío. <a class="enlace" href="index.html">Ir al catálogo</a></div>`;
+    document.getElementById("resumen").innerHTML = ""; document.getElementById("btn-pagar").disabled = true; return;
+  }
+  document.getElementById("btn-pagar").disabled = false;
+  cont.innerHTML = items.map((i) => {
+    const promo = i.modalidad === "PROMOCION" && i.promo;
+    return `<div class="linea"><img src="${i.imagen}" alt=""/>
+      <div class="info"><a href="producto.html?id=${i.idProducto}"><strong>${JJM.esc(i.nombre)}</strong></a>
+        <div class="ayuda">Vende: ${JJM.esc(i.vendedor.toUpperCase())}</div>
+        <div>${promo ? `<span class="badge badge-temporada">${JJM.temporada(i.promo.temporada)} -${Number(i.promo.pct)}%</span>` : '<span class="badge badge-nivel">Costo normal</span>'}
+          ${promo && i.promo.esCausa ? `<span class="badge badge-causa">💚 ${JJM.esc(i.promo.fundacion)}</span>` : ""}</div>
+        ${i.tipo === "PRODUCTO" && i.paqueteria ? `<div class="ayuda">🚚 ${JJM.esc(i.paqueteria.nombre)} · ${i.paqueteria.diasMin}-${i.paqueteria.diasMax} días · envío ${JJM.money(Carrito.envio(i))}</div>` : ""}
+        <div class="cant"><button data-m="${i.idProducto}">−</button><strong>${i.cantidad}</strong><button data-p="${i.idProducto}">+</button>
+          <a href="#" class="enlace" data-q="${i.idProducto}" style="margin-left:12px;font-size:.8rem">Quitar</a></div></div>
+      <div class="precio">${JJM.money(Carrito.importe(i))}</div></div>`;
+  }).join("");
+  cont.querySelectorAll("[data-m]").forEach((b) => (b.onclick = () => { const it = items.find((x) => x.idProducto == b.dataset.m); Carrito.cambiarCantidad(it.idProducto, it.cantidad - 1); pintar(); }));
+  cont.querySelectorAll("[data-p]").forEach((b) => (b.onclick = () => { const it = items.find((x) => x.idProducto == b.dataset.p); Carrito.cambiarCantidad(it.idProducto, it.cantidad + 1); pintar(); }));
+  cont.querySelectorAll("[data-q]").forEach((b) => (b.onclick = (e) => { e.preventDefault(); Carrito.quitar(Number(b.dataset.q)); pintar(); }));
+  const causa = items.some((i) => i.modalidad === "PROMOCION" && i.promo && i.promo.esCausa);
+  document.getElementById("resumen").innerHTML =
+    `<div class="l"><span>Productos (${Carrito.totalItems()})</span><strong>${JJM.money(Carrito.subtotal())}</strong></div>
+     <div class="l"><span>Envío</span><strong>${JJM.money(Carrito.envioTotal())}</strong></div>
+     <div class="l total"><span>Total</span><span>${JJM.money(Carrito.total())}</span></div>
+     ${causa ? '<div class="nota-causa">💚 Tu compra apoya a una asociación civil / fundación mediante la campaña elegida.</div>' : ""}`;
+}
+// ---------- Punto 9: captura de tarjeta (sólo en el navegador; el número completo y el CVV nunca se envían)
+document.getElementById("tj-numero").oninput = (e) => {
+  e.target.value = e.target.value.replace(/[^0-9]/g, "").slice(0, 16).replace(/(\d{4})(?=\d)/g, "$1 ").trim();
+};
+document.getElementById("tj-venc").oninput = (e) => {
+  let v = e.target.value.replace(/[^0-9]/g, "").slice(0, 4);
+  if (v.length > 2) v = v.slice(0, 2) + "/" + v.slice(2);
+  e.target.value = v;
+};
+document.getElementById("tj-cvv").oninput = (e) => (e.target.value = e.target.value.replace(/[^0-9]/g, "").slice(0, 4));
+
+function marcaTarjeta(numero) {
+  if (/^4/.test(numero)) return "Visa";
+  if (/^(5[1-5]|2[2-7])/.test(numero)) return "Mastercard";
+  if (/^3[47]/.test(numero)) return "American Express";
+  return "Tarjeta";
+}
+function luhnValido(numero) {
+  let suma = 0, alterna = false;
+  for (let i = numero.length - 1; i >= 0; i--) {
+    let d = Number(numero[i]);
+    if (alterna) { d *= 2; if (d > 9) d -= 9; }
+    suma += d; alterna = !alterna;
+  }
+  return suma % 10 === 0;
+}
+function validarTarjeta() {
+  const m = document.getElementById("tjmsg");
+  const numero = document.getElementById("tj-numero").value.replace(/\s/g, "");
+  const nombre = document.getElementById("tj-nombre").value.trim();
+  const venc = document.getElementById("tj-venc").value.trim();
+  const cvv = document.getElementById("tj-cvv").value.trim();
+  if (numero.length < 13 || numero.length > 16 || !luhnValido(numero)) { JJM.msg(m, "error", "El número de tarjeta no es válido."); return null; }
+  if (!nombre) { JJM.msg(m, "error", "Escribe el nombre como aparece en la tarjeta."); return null; }
+  const match = /^(\d{2})\/(\d{2})$/.exec(venc);
+  if (!match) { JJM.msg(m, "error", "La fecha de vencimiento debe tener formato MM/AA."); return null; }
+  const [, mm, aa] = match; const hoy = new Date(); const vence = new Date(2000 + Number(aa), Number(mm));
+  if (Number(mm) < 1 || Number(mm) > 12 || vence < hoy) { JJM.msg(m, "error", "La tarjeta está vencida o la fecha no es válida."); return null; }
+  if (cvv.length < 3) { JJM.msg(m, "error", "El CVV debe tener 3 o 4 dígitos."); return null; }
+  JJM.msg(m, "", "");
+  return { marca: marcaTarjeta(numero), ultimos4: numero.slice(-4) };
+}
+
+document.getElementById("btn-pagar").onclick = async () => {
+  const msg = document.getElementById("msg");
+  if (!ApiClient.estaAutenticado()) { sessionStorage.setItem("jjm_aviso", "Inicia sesión para completar tu compra."); location.href = "login.html"; return; }
+  const datosTarjeta = validarTarjeta();
+  if (!datosTarjeta) return;
+  const items = Carrito.obtener();
+  const body = {
+    metodoPago: document.querySelector("input[name=metodo]:checked").value,
+    direccionEnvio: document.getElementById("direccion").value.trim(), cpEnvio: document.getElementById("cp").value.trim(),
+    items: items.map((i) => ({ idProducto: i.idProducto, cantidad: i.cantidad, modalidad: i.modalidad, idPaqueteria: i.paqueteria ? i.paqueteria.id : null })),
+    marcaTarjeta: datosTarjeta.marca, ultimos4Tarjeta: datosTarjeta.ultimos4,
+  };
+  const btn = document.getElementById("btn-pagar"); btn.disabled = true; JJM.msg(msg, "info", "Procesando pago...");
+  try {
+    const r = await ApiClient.post("/pedidos", body);
+    if (r.estatus === "CANCELADO") { JJM.msg(msg, "error", "El pago fue rechazado. Intenta con otro método de pago."); btn.disabled = false; return; }
+    Carrito.vaciar(); msg.innerHTML = "";
+    document.getElementById("layout").classList.add("oculto");
+    document.getElementById("confirmacion").innerHTML = `<div class="tarjeta">
+      <h2>✅ ¡Pedido #${r.id} confirmado!</h2>
+      <p>Total pagado: <strong>${JJM.money(r.total)}</strong> (envío ${JJM.money(r.costoEnvio)})${r.montoCausa > 0 ? ` · 💚 Donado a causas: ${JJM.money(r.montoCausa)}` : ""}</p>
+      ${r.detalles.filter((d) => d.envio).map((d) => `<p>📦 <strong>${JJM.esc(d.nombre)}</strong> — ${JJM.esc(d.envio.paqueteria)} · guía <code>${d.envio.numeroGuia}</code> · llega aprox. ${JJM.fecha(d.envio.fechaEstimada)}</p>`).join("")}
+      <a class="btn btn-primario" href="pedidos.html">Ver mis pedidos</a> <a class="btn btn-secundario" href="factura.html?pedido=${r.id}">Solicitar factura</a></div>`;
+  } catch (e) { JJM.msg(msg, "error", e.message); btn.disabled = false; }
+};
+pintar();
+
+</script>
+</body>
+</html>

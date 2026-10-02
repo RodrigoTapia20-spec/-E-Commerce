@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Factura — JJM con Causa</title>
+<link rel="stylesheet" href="css/styles.css"/>
+</head>
+<body data-pagina="factura">
+<div id="jjm-header"></div>
+<main>
+
+<div class="contenedor" style="max-width:760px">
+  <h2>🧾 Facturación</h2>
+  <div id="msg"></div>
+  <div id="contenido"></div>
+</div>
+
+</main>
+<div id="jjm-footer"></div>
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/carrito.js"></script>
+<script src="js/chatbot.js"></script>
+<script>
+
+const idPedido = new URLSearchParams(location.search).get("pedido");
+const REGIMENES = [["601", "601 · General de Ley Personas Morales"], ["603", "603 · Personas Morales con Fines no Lucrativos"], ["605", "605 · Sueldos y Salarios"],
+  ["606", "606 · Arrendamiento"], ["612", "612 · Personas Físicas con Actividades Empresariales"], ["616", "616 · Sin obligaciones fiscales"],
+  ["621", "621 · Incorporación Fiscal"], ["626", "626 · RESICO"]];
+const USOS = [["G01", "G01 · Adquisición de mercancías"], ["G03", "G03 · Gastos en general"], ["S01", "S01 · Sin efectos fiscales"], ["D01", "D01 · Honorarios médicos"]];
+
+function verFactura(f) {
+  document.getElementById("contenido").innerHTML = `<div class="tarjeta" id="hoja">
+    <h3>Solicitud de factura — Folio ${JJM.esc(f.folio)}</h3>
+    <p><span class="estado PENDIENTE">${f.estatus.replace("_", " ")}</span></p>
+    <div class="msg-info">Tu solicitud quedó registrada. El timbrado fiscal (CFDI) se completa cuando la empresa conecte su proveedor autorizado (PAC); recibirás el XML y PDF en <strong>${JJM.esc(f.correoEnvio)}</strong>.</div>
+    <table class="tabla" style="margin-top:12px">
+      <tr><th>Pedido</th><td>#${f.idPedido}</td></tr><tr><th>RFC receptor</th><td>${JJM.esc(f.rfcReceptor)}</td></tr>
+      <tr><th>Razón social</th><td>${JJM.esc(f.razonSocial)}</td></tr><tr><th>Régimen fiscal</th><td>${JJM.esc(f.regimenFiscal)}</td></tr>
+      <tr><th>Uso de CFDI</th><td>${JJM.esc(f.usoCfdi)}</td></tr><tr><th>C.P. fiscal</th><td>${JJM.esc(f.cpFiscal)}</td></tr>
+      <tr><th>Subtotal</th><td>${JJM.money(f.subtotal)}</td></tr><tr><th>IVA 16%</th><td>${JJM.money(f.iva)}</td></tr>
+      <tr><th>Total</th><td><strong>${JJM.money(f.total)}</strong></td></tr><tr><th>Fecha</th><td>${JJM.fecha(f.fechaEmision)}</td></tr></table>
+    <button class="btn btn-secundario btn-bloque" onclick="window.print()">🖨️ Imprimir / guardar PDF</button>
+    <a class="btn btn-primario btn-bloque" href="pedidos.html">Volver a mis pedidos</a></div>`;
+}
+function formulario() {
+  document.getElementById("contenido").innerHTML = `<div class="tarjeta"><p class="ayuda">Pedido #${idPedido}. Captura tus datos fiscales tal como aparecen en tu Constancia de Situación Fiscal.</p>
+    <form id="form">
+      <div class="fila"><div><label>RFC</label><input id="rfc" maxlength="13" required style="text-transform:uppercase"/></div>
+      <div><label>Código postal fiscal</label><input id="cp" maxlength="5" inputmode="numeric" required/></div></div>
+      <label>Razón social / nombre</label><input id="razon" required/>
+      <label>Régimen fiscal</label><select id="regimen">${REGIMENES.map((r) => `<option value="${r[0]}">${r[1]}</option>`).join("")}</select>
+      <label>Uso del CFDI</label><select id="uso">${USOS.map((r) => `<option value="${r[0]}" ${r[0] === "G03" ? "selected" : ""}>${r[1]}</option>`).join("")}</select>
+      <label>Correo para enviarte la factura</label><input type="email" id="correo"/>
+      <div id="fmsg"></div><button class="btn btn-primario btn-bloque" type="submit">Solicitar factura</button></form></div>`;
+  document.getElementById("form").onsubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const f = await ApiClient.post("/facturas", { idPedido: Number(idPedido), rfcReceptor: document.getElementById("rfc").value.trim(),
+        razonSocial: document.getElementById("razon").value.trim(), regimenFiscal: document.getElementById("regimen").value,
+        usoCfdi: document.getElementById("uso").value, cpFiscal: document.getElementById("cp").value.trim(),
+        correoEnvio: document.getElementById("correo").value.trim() || null });
+      verFactura(f);
+    } catch (err) { JJM.msg(document.getElementById("fmsg"), "error", err.message); }
+  };
+}
+async function init() {
+  if (!JJM.requiereRol()) return;
+  if (!idPedido) { JJM.msg(document.getElementById("msg"), "error", "Falta el número de pedido."); return; }
+  try { verFactura(await ApiClient.get("/facturas/pedido/" + idPedido)); }
+  catch (e) { formulario(); }
+}
+init();
+
+</script>
+</body>
+</html>

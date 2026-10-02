@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Panel de distribuidor — JJM con Causa</title>
+<link rel="stylesheet" href="css/styles.css"/>
+</head>
+<body data-pagina="distribuidor">
+<div id="jjm-header"></div>
+<main>
+
+<div class="contenedor">
+  <h2>🚚 Panel del Distribuidor</h2>
+  <p class="ayuda">Gestiona las guías de envío: cada entrega avanza de <strong>PENDIENTE</strong> → <strong>EN_TRANSITO</strong> → <strong>ENTREGADO</strong>.</p>
+  <div class="chips" id="filtros">
+    <span class="chip activa" data-f="">Todos</span><span class="chip" data-f="PENDIENTE">Pendientes</span>
+    <span class="chip" data-f="EN_TRANSITO">En tránsito</span><span class="chip" data-f="ENTREGADO">Entregados</span>
+  </div>
+  <div id="msg"></div>
+  <div class="scroll-x" id="tabla"></div>
+</div>
+
+</main>
+<div id="jjm-footer"></div>
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/carrito.js"></script>
+<script src="js/chatbot.js"></script>
+<script>
+
+let filtro = "";
+async function cargar() {
+  try {
+    const l = await ApiClient.get("/distribuidor/envios" + (filtro ? "?estatus=" + filtro : ""));
+    document.getElementById("tabla").innerHTML = l.length ? `<table class="tabla"><tr><th>Guía</th><th>Paquetería</th><th>Pedido</th><th>Producto</th><th>Vendedor</th><th>Cliente / dirección</th><th>Entrega est.</th><th>Estatus</th><th></th></tr>` +
+      l.map((e) => `<tr><td><code>${e.numeroGuia}</code></td><td>${JJM.esc(e.paqueteria)}</td><td>#${e.idPedido}</td><td>${JJM.esc(e.producto)} × ${e.cantidad}</td><td>${JJM.esc(e.vendedor)}</td>
+        <td>${JJM.esc(e.cliente)}<br/><small>${JJM.esc(e.direccion)}</small></td><td>${JJM.fecha(e.fechaEstimada)}</td><td><span class="estado ${e.estatus}">${e.estatus}</span></td>
+        <td>${e.estatus === "PENDIENTE" ? `<button class="btn btn-primario btn-chico" data-a="${e.id}|EN_TRANSITO">Marcar en tránsito</button>`
+          : e.estatus === "EN_TRANSITO" ? `<button class="btn btn-verde btn-chico" data-a="${e.id}|ENTREGADO">Marcar entregado</button>` : "✔"}</td></tr>`).join("") + "</table>"
+      : '<div class="tarjeta">No hay envíos con ese filtro.</div>';
+    document.querySelectorAll("[data-a]").forEach((b) => (b.onclick = async () => {
+      const [id, est] = b.dataset.a.split("|");
+      try { await ApiClient.patch(`/distribuidor/envios/${id}/estatus?estatus=${est}`); cargar(); }
+      catch (e) { JJM.msg(document.getElementById("msg"), "error", e.message); }
+    }));
+  } catch (e) { JJM.msg(document.getElementById("msg"), "error", e.message); }
+}
+if (JJM.requiereRol("DISTRIBUIDOR", "ADMIN")) {
+  cargar();
+  document.querySelectorAll("#filtros .chip").forEach((c) => (c.onclick = () => {
+    filtro = c.dataset.f; document.querySelectorAll("#filtros .chip").forEach((x) => x.classList.toggle("activa", x === c)); cargar(); }));
+}
+
+</script>
+</body>
+</html>

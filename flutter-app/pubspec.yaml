@@ -1,0 +1,38 @@
+name: jjm_app
+description: JJM Tecnologías Innovadoras - E-Commerce con Causa Social (Android + iOS)
+publish_to: "none"
+version: 2.0.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.2.2
+  http_parser: ^4.0.2
+  shared_preferences: ^2.3.2
+  image_picker: ^1.1.2
+  video_player: ^2.9.2
+  intl: ^0.19.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.14.1
+
+# Ícono de la app a partir del logo (assets/images/logo.png, 1024x1024 recomendado).
+# Después de copiar tu logo ejecuta:  dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/logo.png"
+  remove_alpha_ios: true
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/images/logo.png"
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/

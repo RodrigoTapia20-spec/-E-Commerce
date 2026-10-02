@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Panel de vendedor — JJM con Causa</title>
+<link rel="stylesheet" href="css/styles.css"/>
+</head>
+<body data-pagina="vendedor">
+<div id="jjm-header"></div>
+<main>
+
+<div class="contenedor">
+  <div class="dash">
+    <aside class="sidebar">
+      <a data-tab="resumen" class="activa">📊 Resumen</a>
+      <a data-tab="publicar">➕ Publicar producto</a>
+      <a data-tab="productos">📦 Mis productos</a>
+      <a data-tab="campanas">🎄 Campañas y promociones</a>
+      <a data-tab="opiniones">⭐ Mis opiniones</a>
+      <a data-tab="pagos">💳 Pagos y Cobros</a>
+    </aside>
+    <section>
+      <div id="msg"></div>
+
+      <div id="tab-resumen">
+        <h2>Resumen de tu negocio</h2>
+        <div id="estado-cuenta"></div>
+        <div class="kpis" id="kpis"></div>
+      </div>
+
+      <div id="tab-publicar" class="oculto">
+        <h2 id="titulo-publicar">Publicar producto o servicio</h2>
+        <div class="msg-info">📸 Cada publicación necesita <strong>mínimo 3 archivos</strong> en su galería: pueden ser fotos, videos de <strong>máximo 15 segundos</strong> (con o sin audio), o una mezcla de ambos.</div>
+        <a href="#" id="cancelar-edicion" class="enlace oculto">← Cancelar edición y publicar uno nuevo</a>
+        <form id="form-producto" class="tarjeta" style="margin-top:12px">
+          <div class="fila">
+            <div><label>Tipo</label><select id="tipo"><option value="PRODUCTO">Producto (con envío)</option><option value="SERVICIO">Servicio (sin envío)</option></select></div>
+            <div><label>Categoría</label><select id="categoria"></select></div>
+          </div>
+          <label>Nombre</label><input id="nombre" required maxlength="150"/>
+          <label>Descripción</label><textarea id="descripcion"></textarea>
+          <div class="fila">
+            <div><label>Precio normal (MXN)</label><input type="number" id="precio" min="1" step="0.01" required/></div>
+            <div><label>Existencia</label><input type="number" id="existencia" min="0" value="1"/></div>
+          </div>
+          <div id="bloque-fisico">
+            <label>Peso por pieza (kg) — se usa para calcular el envío</label><input type="number" id="peso" min="0.05" step="0.05" value="0.5" style="width:140px"/>
+            <label>Paqueterías que ofreces a tus clientes</label><div id="paqueterias"></div>
+          </div>
+
+          <label>Galería (imágenes y videos)</label>
+          <div class="zona-subida">
+            <input type="file" id="archivos" multiple accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime"/>
+            <div class="ayuda">JPG, PNG o WEBP (máx. 8 MB) · Videos MP4/WEBM/MOV de hasta 15 s (máx. 30 MB)</div>
+            <div class="contador mal" id="contador">0 archivos (mínimo 3)</div>
+          </div>
+          <div class="media-grid" id="media-grid"></div>
+          <div id="pmsg"></div>
+          <button class="btn btn-primario btn-bloque" id="btn-publicar" type="submit" disabled>Publicar</button>
+        </form>
+      </div>
+
+      <div id="tab-productos" class="oculto"><h2>Mis productos</h2><div class="scroll-x" id="tabla-productos"></div></div>
+
+      <div id="tab-campanas" class="oculto">
+        <h2>Campañas y promociones</h2>
+        <div class="msg-info">Lanza campañas de temporada sobre tus productos. Tus clientes elegirán al comprar entre <strong>costo normal</strong> y <strong>precio con promoción</strong>.</div>
+        <form id="form-campana" class="tarjeta" style="margin-top:12px">
+          <label>Nombre de la campaña</label><input id="c-titulo" required placeholder="Ej. Navidad con causa"/>
+          <div class="fila">
+            <div><label>Temporada</label><select id="c-temporada">
+              <option value="NAVIDAD">🎄 Navidad</option><option value="DIA_DE_MUERTOS">💀 Día de Muertos</option><option value="FIESTAS_PATRIAS">🇲🇽 Fiestas Patrias</option>
+              <option value="BUEN_FIN">🛍️ Buen Fin</option><option value="DIA_DE_LAS_MADRES">💐 Día de las Madres</option><option value="SAN_VALENTIN">❤️ San Valentín</option>
+              <option value="GENERAL">🎁 General</option><option value="OTRA">Otra</option></select></div>
+            <div><label>Descuento (%)</label><input type="number" id="c-pct" min="5" max="90" value="20" required/>
+              <div class="chips" style="margin:6px 0 0"><span class="chip" data-pct="20">20%</span><span class="chip" data-pct="30">30%</span><span class="chip" data-pct="40">40%</span><span class="chip" data-pct="50">50%</span></div></div>
+          </div>
+          <div class="fila">
+            <div><label>Inicia</label><input type="date" id="c-ini" required/></div>
+            <div><label>Termina</label><input type="date" id="c-fin" required/></div>
+          </div>
+          <label>Descripción (opcional)</label><input id="c-desc"/>
+          <label>Productos que participan</label><div id="c-productos" class="tarjeta" style="background:#f8f8f8"></div>
+          <label style="display:flex;gap:8px;align-items:center;margin-top:14px"><input type="checkbox" id="c-causa"/> 💚 Esta campaña apoya a una asociación civil / fundación</label>
+          <div id="bloque-causa" class="oculto">
+            <div class="fila">
+              <div><label>Asociación o fundación beneficiaria</label><input id="c-fund" placeholder="Ej. Fundación Techo"/></div>
+              <div><label>% de cada venta que donas</label><input type="number" id="c-don" min="1" max="100" value="5"/></div>
+            </div>
+            <div class="ayuda">La donación sale de tu parte de la venta y se registra en el pedido del cliente.</div>
+          </div>
+          <div id="cmsg"></div>
+          <button class="btn btn-primario btn-bloque" type="submit">Lanzar campaña</button>
+        </form>
+        <div class="titulo-seccion">Mis campañas</div><div class="scroll-x" id="tabla-campanas"></div>
+      </div>
+
+      <div id="tab-opiniones" class="oculto"><h2>Opiniones de mis clientes</h2><div id="opiniones"></div></div>
+
+      <div id="tab-pagos" class="oculto">
+        <h2>Pagos y Cobros</h2>
+        <div class="msg-info">Aquí registras la cuenta donde quieres recibir el dinero de tus ventas. Por seguridad sólo guardamos los últimos 4 dígitos de tu cuenta o tarjeta — nunca el número completo.</div>
+        <form id="form-cuenta" class="tarjeta" style="margin-top:12px">
+          <strong>Cuenta para recibir tus pagos</strong>
+          <label>Titular de la cuenta</label><input id="pc-titular" required/>
+          <div class="fila">
+            <div><label>Banco</label><input id="pc-banco" required/></div>
+            <div><label>Tipo</label><select id="pc-tipo"><option value="CLABE">CLABE interbancaria</option><option value="TARJETA">Tarjeta de débito</option></select></div>
+          </div>
+          <label id="pc-num-label">CLABE (18 dígitos)</label>
+          <input id="pc-numero" inputmode="numeric" required/>
+          <div class="ayuda">Sólo se guardan los últimos 4 dígitos; el resto no se almacena.</div>
+          <div id="pcmsg"></div>
+          <button class="btn btn-primario btn-bloque" type="submit">Guardar cuenta</button>
+        </form>
+        <div class="titulo-seccion">Historial de pagos recibidos</div>
+        <div class="scroll-x" id="tabla-pagos"></div>
+      </div>
+    </section>
+  </div>
+</div>
+
+</main>
+<div id="jjm-footer"></div>
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/carrito.js"></script>
+<script src="js/chatbot.js"></script>
+<script>
+
+let perfil = null, misProductos = [], media = [];
+const MAX = 8, MIN = 3, MAX_SEG = 15, MAX_VIDEOS = 5;
+
+function tab(nombre) {
+  ["resumen", "publicar", "productos", "campanas", "opiniones", "pagos"].forEach((t) => document.getElementById("tab-" + t).classList.toggle("oculto", t !== nombre));
+  document.querySelectorAll(".sidebar a").forEach((a) => a.classList.toggle("activa", a.dataset.tab === nombre));
+  document.body.dataset.pagina = nombre === "publicar" ? "vendedor-publicar" : nombre === "campanas" ? "vendedor-campanas" : "vendedor";
+  if (nombre === "productos") pintarProductos();
+  if (nombre === "campanas") { pintarProductosCampana(); cargarCampanas(); }
+  if (nombre === "opiniones") cargarOpiniones();
+  if (nombre === "pagos") { cargarCuentaCobro(); cargarPagos(); }
+}
+document.querySelectorAll(".sidebar a").forEach((a) => (a.onclick = () => tab(a.dataset.tab)));
+
+// ---------- Resumen
+async function cargarResumen() {
+  perfil = await ApiClient.get("/aliados/mi-perfil");
+  const est = document.getElementById("estado-cuenta");
+  est.innerHTML = perfil.estatusVerificacion === "APROBADO"
+    ? `<div class="msg-ok">✅ Cuenta verificada. ${JJM.esc(perfil.nombreComercial)} · nivel <strong>${perfil.ranking.nivel}</strong> · ${JJM.estrellas(perfil.ranking.calificacionPromedio, perfil.ranking.totalCalificaciones)}</div>`
+    : `<div class="msg-error">Tu cuenta está <strong>${perfil.estatusVerificacion}</strong>. El administrador debe aprobarla antes de que puedas publicar productos.</div>`;
+  const r = await ApiClient.get("/aliados/mi-reporte");
+  document.getElementById("kpis").innerHTML = `
+    <div class="kpi"><div class="valor">${r.unidadesVendidas}</div><div class="etq">Unidades vendidas</div></div>
+    <div class="kpi"><div class="valor">${JJM.money(r.ventasTotales)}</div><div class="etq">Ventas totales</div></div>
+    <div class="kpi"><div class="valor">${JJM.money(r.montoRecibido)}</div><div class="etq">Lo que recibes (tras convenio)</div></div>
+    <div class="kpi"><div class="valor">${JJM.money(r.montoDonado)}</div><div class="etq">Donado a causas 💚</div></div>`;
+}
+
+// ---------- Publicar: galería
+function duracionVideo(file) {
+  return new Promise((res, rej) => {
+    const v = document.createElement("video"); v.preload = "metadata";
+    v.onloadedmetadata = () => { URL.revokeObjectURL(v.src); res(v.duration); };
+    v.onerror = () => rej(new Error("No se pudo leer el video."));
+    v.src = URL.createObjectURL(file);
+  });
+}
+function pintarMedia() {
+  const g = document.getElementById("media-grid");
+  g.innerHTML = media.map((m, i) => `<div><div class="media-item">
+      ${m.tipo === "VIDEO" ? `<video src="${m.preview}" muted></video>` : `<img src="${m.preview}" alt=""/>`}
+      <button type="button" class="quitar" data-q="${i}" aria-label="Quitar">✕</button>
+      <span class="tipo">${i === 0 ? "★ Principal" : m.tipo === "VIDEO" ? "🎬 " + m.duracion + " s" : "🖼️"}</span></div>
+      ${m.tipo === "VIDEO" ? `<label style="font-weight:400;margin:4px 0 0"><input type="checkbox" data-a="${i}" ${m.conAudio ? "checked" : ""}/> 🔊 con audio</label>` : ""}
+      ${i > 0 && m.tipo === "IMAGEN" ? `<a href="#" class="enlace" data-p="${i}" style="font-size:.72rem">Hacer principal</a>` : ""}</div>`).join("");
+  g.querySelectorAll("[data-q]").forEach((b) => (b.onclick = () => { media.splice(Number(b.dataset.q), 1); pintarMedia(); }));
+  g.querySelectorAll("[data-a]").forEach((c) => (c.onchange = () => (media[Number(c.dataset.a)].conAudio = c.checked)));
+  g.querySelectorAll("[data-p]").forEach((a) => (a.onclick = (e) => { e.preventDefault(); const [m] = media.splice(Number(a.dataset.p), 1); media.unshift(m); pintarMedia(); }));
+  const c = document.getElementById("contador"); const ok = media.length >= MIN && media.length <= MAX;
+  c.textContent = `${media.length} archivos (mínimo ${MIN})`; c.className = "contador " + (ok ? "ok" : "mal");
+  document.getElementById("btn-publicar").disabled = !ok || perfil.estatusVerificacion !== "APROBADO";
+}
+document.getElementById("archivos").onchange = async (e) => {
+  const pm = document.getElementById("pmsg");
+  for (const f of e.target.files) {
+    if (media.length >= MAX) { JJM.msg(pm, "error", `Máximo ${MAX} archivos por producto.`); break; }
+    try {
+      let dur = 0;
+      if (f.type.startsWith("video/")) {
+        if (media.filter((m) => m.tipo === "VIDEO").length >= MAX_VIDEOS) throw new Error(`Máximo ${MAX_VIDEOS} videos por producto.`);
+        dur = await duracionVideo(f);
+        if (dur > MAX_SEG + 0.4) throw new Error(`"${f.name}" dura ${Math.round(dur)} s; el máximo es ${MAX_SEG} s. Recórtalo e inténtalo de nuevo.`);
+      }
+      JJM.msg(pm, "info", `Subiendo ${f.name}...`);
+      const r = await ApiClient.subir(f);
+      media.push({ tipo: r.tipo, url: r.url, preview: URL.createObjectURL(f), duracion: Math.max(1, Math.ceil(dur)), conAudio: true });
+      JJM.msg(pm, "", ""); pintarMedia();
+    } catch (err) { JJM.msg(pm, "error", err.message); }
+  }
+  e.target.value = "";
+};
+document.getElementById("tipo").onchange = (e) => document.getElementById("bloque-fisico").classList.toggle("oculto", e.target.value !== "PRODUCTO");
+document.getElementById("form-producto").onsubmit = async (e) => {
+  e.preventDefault(); const pm = document.getElementById("pmsg");
+  const ids = [...document.querySelectorAll("#paqueterias input:checked")].map((c) => Number(c.value));
+  const fisico = document.getElementById("tipo").value === "PRODUCTO";
+  if (fisico && !ids.length) { JJM.msg(pm, "error", "Elige al menos una paquetería."); return; }
+  const body = {
+    idCategoria: Number(document.getElementById("categoria").value), tipo: document.getElementById("tipo").value,
+    nombre: document.getElementById("nombre").value.trim(), descripcion: document.getElementById("descripcion").value.trim(),
+    precio: Number(document.getElementById("precio").value), existencia: Number(document.getElementById("existencia").value),
+    pesoKg: fisico ? Number(document.getElementById("peso").value) : null, idsPaqueterias: fisico ? ids : [],
+    media: media.map((m) => ({ tipo: m.tipo, url: m.url, duracionSegundos: m.tipo === "VIDEO" ? m.duracion : null, conAudio: m.tipo === "VIDEO" ? m.conAudio : null })),
+  };
+  try {
+    if (modoEdicion) {
+      await ApiClient.request(`/aliados/productos/${modoEdicion}`, { method: "PUT", body });
+      JJM.toast("¡Cambios guardados! 🎉");
+      modoEdicion = null;
+      document.getElementById("titulo-publicar").textContent = "Publicar producto o servicio";
+      document.getElementById("cancelar-edicion").classList.add("oculto");
+      document.getElementById("btn-publicar").textContent = "Publicar";
+    } else {
+      await ApiClient.post("/aliados/productos", body);
+      JJM.toast("¡Producto publicado! 🎉");
+    }
+    e.target.reset(); media = []; pintarMedia(); JJM.msg(pm, "", "");
+    await cargarProductos(); tab("productos");
+  } catch (err) { JJM.msg(pm, "error", err.message); }
+};
+
+// ---------- Productos
+async function cargarProductos() { misProductos = await ApiClient.get("/aliados/productos"); }
+function pintarProductos() {
+  document.getElementById("tabla-productos").innerHTML = misProductos.length ? `<table class="tabla"><tr><th></th><th>Producto</th><th>Precio</th><th>Stock</th><th>Galería</th><th>Estatus</th><th>Promoción</th><th></th></tr>` +
+    misProductos.map((p) => `<tr><td><img src="${JJM.imagenPrincipal(p)}" width="46" height="46" style="object-fit:cover;border-radius:6px" alt=""/></td>
+      <td><strong>${JJM.esc(p.nombre)}</strong><br/><small>${p.tipo}${p.verificadoIa ? " · ✔ IA" : " · sin verificar"}</small></td><td>${JJM.money(p.precio)}</td><td>${p.existencia}</td>
+      <td>${p.media.length} archivos</td><td><span class="estado ${p.estatus}">${p.estatus}</span></td>
+      <td>${p.promocion ? `-${Number(p.promocion.porcentajeDescuento)}% ${JJM.temporada(p.promocion.tipoTemporada)}` : "—"}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-secundario btn-chico" data-e="${p.id}|${p.estatus === "ACTIVO" ? "PAUSADO" : "ACTIVO"}">${p.estatus === "ACTIVO" ? "Pausar" : "Activar"}</button>
+        <button class="btn btn-secundario btn-chico" data-mod="${p.id}">Modificar Datos</button>
+        <button class="btn btn-rojo btn-chico" data-del="${p.id}" data-nombre="${JJM.esc(p.nombre)}">Eliminar</button>
+      </td></tr>`).join("") + "</table>"
+    : '<div class="tarjeta">Todavía no has publicado productos.</div>';
+  document.querySelectorAll("[data-e]").forEach((b) => (b.onclick = async () => {
+    const [id, est] = b.dataset.e.split("|");
+    try { await ApiClient.patch(`/aliados/productos/${id}/estatus?estatus=${est}`); await cargarProductos(); pintarProductos(); }
+    catch (e) { JJM.msg(document.getElementById("msg"), "error", e.message); }
+  }));
+  document.querySelectorAll("[data-mod]").forEach((b) => (b.onclick = () => editarProducto(Number(b.dataset.mod))));
+  document.querySelectorAll("[data-del]").forEach((b) => (b.onclick = async () => {
+    if (!confirm(`¿Estás seguro/a de eliminar "${b.dataset.nombre}"? Esta acción no se puede deshacer.`)) return;
+    try { await ApiClient.request(`/aliados/productos/${b.dataset.del}`, { method: "DELETE" }); JJM.toast("Producto eliminado."); await cargarProductos(); pintarProductos(); }
+    catch (e) { JJM.msg(document.getElementById("msg"), "error", e.message); }
+  }));
+}
+
+// ---------- Modificar Datos (editar producto existente)
+let modoEdicion = null;
+function editarProducto(id) {
+  const p = misProductos.find((x) => x.id === id);
+  if (!p) return;
+  modoEdicion = id;
+  document.getElementById("titulo-publicar").textContent = `Modificando: ${p.nombre}`;
+  document.getElementById("cancelar-edicion").classList.remove("oculto");
+  document.getElementById("btn-publicar").textContent = "Guardar cambios";
+  document.getElementById("tipo").value = p.tipo;
+  document.getElementById("tipo").dispatchEvent(new Event("change"));
+  document.getElementById("categoria").value = p.idCategoria;
+  document.getElementById("nombre").value = p.nombre;
+  document.getElementById("descripcion").value = p.descripcion || "";
+  document.getElementById("precio").value = p.precio;
+  document.getElementById("existencia").value = p.existencia;
+  document.getElementById("peso").value = p.pesoKg;
+  const idsPaq = new Set((p.paqueterias || []).map((q) => q.id));
+  document.querySelectorAll("#paqueterias input[type=checkbox]").forEach((c) => (c.checked = idsPaq.has(Number(c.value))));
+  media = p.media.map((m) => ({ tipo: m.tipo, url: m.url, preview: m.url, duracion: m.duracionSegundos || 1, conAudio: m.conAudio }));
+  pintarMedia();
+  tab("publicar");
+  document.getElementById("form-producto").scrollIntoView({ behavior: "smooth" });
+}
+document.getElementById("cancelar-edicion").onclick = (e) => {
+  e.preventDefault();
+  modoEdicion = null;
+  document.getElementById("form-producto").reset();
+  media = []; pintarMedia();
+  document.getElementById("titulo-publicar").textContent = "Publicar producto o servicio";
+  document.getElementById("cancelar-edicion").classList.add("oculto");
+  document.getElementById("btn-publicar").textContent = "Publicar";
+};
+
+// ---------- Campañas
+function pintarProductosCampana() {
+  const act = misProductos.filter((p) => p.estatus === "ACTIVO");
+  document.getElementById("c-productos").innerHTML = act.length
+    ? act.map((p) => `<label style="font-weight:400;margin:4px 0"><input type="checkbox" value="${p.id}"/> ${JJM.esc(p.nombre)} — ${JJM.money(p.precio)}</label>`).join("")
+    : "Publica primero al menos un producto activo.";
+}
+document.querySelectorAll("[data-pct]").forEach((c) => (c.onclick = () => (document.getElementById("c-pct").value = c.dataset.pct)));
+document.getElementById("c-causa").onchange = (e) => document.getElementById("bloque-causa").classList.toggle("oculto", !e.target.checked);
+document.getElementById("form-campana").onsubmit = async (e) => {
+  e.preventDefault(); const cm = document.getElementById("cmsg");
+  const ids = [...document.querySelectorAll("#c-productos input:checked")].map((c) => Number(c.value));
+  const causa = document.getElementById("c-causa").checked;
+  try {
+    await ApiClient.post("/aliados/promociones", {
+      titulo: document.getElementById("c-titulo").value.trim(), descripcion: document.getElementById("c-desc").value.trim(),
+      porcentajeDescuento: Number(document.getElementById("c-pct").value), tipoTemporada: document.getElementById("c-temporada").value,
+      fechaInicio: document.getElementById("c-ini").value, fechaFin: document.getElementById("c-fin").value, idProductos: ids,
+      esCausaSocial: causa, fundacionBeneficiaria: causa ? document.getElementById("c-fund").value.trim() : null,
+      porcentajeDonacion: causa ? Number(document.getElementById("c-don").value) : 0,
+    });
+    JJM.toast("¡Campaña creada! 🎁"); e.target.reset(); cargarCampanas(); await cargarProductos();
+    JJM.msg(cm, "", "");
+  } catch (err) { JJM.msg(cm, "error", err.message); }
+};
+async function cargarCampanas() {
+  const l = await ApiClient.get("/aliados/promociones").catch(() => []);
+  document.getElementById("tabla-campanas").innerHTML = l.length ? `<table class="tabla"><tr><th>Campaña</th><th>Temporada</th><th>Desc.</th><th>Vigencia</th><th>Causa</th><th>Estatus</th><th></th></tr>` +
+    l.map((c) => `<tr><td>${JJM.esc(c.titulo)}<br/><small>${c.idsProductos.length} producto(s)</small></td><td>${JJM.temporada(c.tipoTemporada)}</td><td>${Number(c.porcentajeDescuento)}%</td>
+      <td>${JJM.fecha(c.fechaInicio + "T00:00")} – ${JJM.fecha(c.fechaFin + "T00:00")}</td>
+      <td>${c.esCausaSocial ? `💚 ${JJM.esc(c.fundacionBeneficiaria)} (${Number(c.porcentajeDonacion)}%)` : "—"}</td>
+      <td><span class="estado ${c.estatus}">${c.estatus}</span></td>
+      <td>${c.estatus === "ACTIVA" ? `<button class="btn btn-secundario btn-chico" data-c="${c.id}|PAUSADA">Pausar</button>` : c.estatus === "PAUSADA" ? `<button class="btn btn-secundario btn-chico" data-c="${c.id}|ACTIVA">Reanudar</button>` : ""}</td></tr>`).join("") + "</table>"
+    : '<div class="tarjeta">Aún no tienes campañas.</div>';
+  document.querySelectorAll("[data-c]").forEach((b) => (b.onclick = async () => {
+    const [id, est] = b.dataset.c.split("|"); await ApiClient.patch(`/aliados/promociones/${id}/estatus?estatus=${est}`); cargarCampanas(); }));
+}
+
+// ---------- Opiniones
+async function cargarOpiniones() {
+  const l = await ApiClient.get("/calificaciones/aliado/" + perfil.id).catch(() => []);
+  document.getElementById("opiniones").innerHTML =
+    `<div class="tarjeta">${JJM.estrellas(perfil.ranking.calificacionPromedio, perfil.ranking.totalCalificaciones)} · nivel <strong>${perfil.ranking.nivel}</strong>
+     <div class="ayuda">NUEVO (menos de 3 calificaciones) → BRONCE → PLATA (3.0+) → ORO (4.0+) → PLATINO (4.5+)</div></div>` +
+    (l.length ? l.map((c) => `<div class="tarjeta" style="margin-top:10px"><span class="estrellas">${"★".repeat(c.calificacion)}${"☆".repeat(5 - c.calificacion)}</span> <strong>${JJM.esc(c.cliente)}</strong> <small>${JJM.fecha(c.fecha)}</small><p>${JJM.esc(c.comentario || "")}</p></div>`).join("")
+      : '<div class="tarjeta" style="margin-top:10px">Todavía no tienes calificaciones.</div>');
+}
+
+// ---------- Pagos y Cobros (punto 10)
+document.getElementById("pc-tipo").onchange = (e) => {
+  document.getElementById("pc-num-label").textContent = e.target.value === "CLABE" ? "CLABE (18 dígitos)" : "Número de tarjeta";
+};
+async function cargarCuentaCobro() {
+  const c = await ApiClient.get("/aliados/mi-cuenta-cobro").catch(() => null);
+  if (c) {
+    document.getElementById("pc-titular").value = c.titular;
+    document.getElementById("pc-banco").value = c.banco;
+    document.getElementById("pc-tipo").value = c.tipoCuenta;
+    document.getElementById("pc-numero").placeholder = c.numeroEnmascarado;
+    document.getElementById("pc-numero").required = false;
+    document.getElementById("pc-num-label").textContent = (c.tipoCuenta === "CLABE" ? "CLABE (18 dígitos)" : "Número de tarjeta") + " — actual: " + c.numeroEnmascarado;
+  }
+}
+document.getElementById("form-cuenta").onsubmit = async (e) => {
+  e.preventDefault(); const pm = document.getElementById("pcmsg");
+  const numero = document.getElementById("pc-numero").value.trim();
+  if (!numero && !document.getElementById("pc-numero").placeholder) { JJM.msg(pm, "error", "Escribe el número completo (sólo guardaremos los últimos 4 dígitos)."); return; }
+  try {
+    await ApiClient.post("/aliados/mi-cuenta-cobro", {
+      titular: document.getElementById("pc-titular").value.trim(), banco: document.getElementById("pc-banco").value.trim(),
+      tipoCuenta: document.getElementById("pc-tipo").value, numeroCompleto: numero || "0000",
+    });
+    JJM.msg(pm, "ok", "¡Cuenta guardada!"); await cargarCuentaCobro();
+  } catch (err) { JJM.msg(pm, "error", err.message); }
+};
+async function cargarPagos() {
+  const l = await ApiClient.get("/aliados/mis-pagos").catch(() => []);
+  document.getElementById("tabla-pagos").innerHTML = l.length ? `<table class="tabla"><tr><th>Pedido</th><th>Fecha</th><th>Recibiste</th><th>Donado</th><th>Estatus</th></tr>` +
+    l.map((p) => `<tr><td>#${p.idPedido}</td><td>${JJM.fecha(p.fecha)}</td><td>${JJM.money(p.montoRecibido)}</td><td>${JJM.money(p.montoDonado)}</td><td><span class="estado ${p.estatus}">${p.estatus}</span></td></tr>`).join("") + "</table>"
+    : '<div class="tarjeta">Todavía no tienes pagos registrados.</div>';
+}
+
+// ---------- Inicio
+async function init() {
+  if (!JJM.requiereRol("ALIADO")) return;
+  try {
+    await cargarResumen(); await cargarProductos();
+    const cats = await ApiClient.get("/categorias");
+    document.getElementById("categoria").innerHTML = cats.map((c) => `<option value="${c.id}">${JJM.esc(c.nombre)}</option>`).join("");
+    const paq = await ApiClient.get("/envios/paqueterias");
+    document.getElementById("paqueterias").innerHTML = paq.map((p) => `<label style="font-weight:400;margin:4px 0"><input type="checkbox" value="${p.id}" checked/> ${JJM.esc(p.nombre)} — ${p.diasMin}-${p.diasMax} días (desde ${JJM.money(p.costoBase)})</label>`).join("");
+    pintarMedia();
+  } catch (e) { JJM.msg(document.getElementById("msg"), "error", e.message); }
+}
+init();
+
+</script>
+</body>
+</html>

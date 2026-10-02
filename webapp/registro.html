@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Crear cuenta — JJM con Causa</title>
+<link rel="stylesheet" href="css/styles.css"/>
+</head>
+<body data-pagina="login">
+<div id="jjm-header"></div>
+<main>
+
+<div class="panel panel-ancho" id="paso-datos">
+  <h2>Crear cuenta</h2>
+  <form id="form-reg">
+    <div class="fila">
+      <div><label>Nombre</label><input id="nombre" required/></div>
+      <div><label>Apellidos</label><input id="apellidos" required/></div>
+    </div>
+    <div class="fila">
+      <div><label>Correo electrónico</label><input type="email" id="correo" required/></div>
+      <div><label>Teléfono <small>(con tu WhatsApp, 10 dígitos)</small></label><input id="telefono" inputmode="tel" placeholder="Ej. 5512345678"/></div>
+    </div>
+    <label>Contraseña (mínimo 8 caracteres)</label>
+    <div class="campo-password">
+      <input type="password" id="password" minlength="8" required autocomplete="new-password"/>
+      <button type="button" class="btn-ojo" onclick="JJM.alternarPassword('password', this)" aria-label="Mostrar contraseña">👁</button>
+    </div>
+    <label>Quiero registrarme como</label>
+    <select id="rol"><option value="CLIENTE">Cliente</option><option value="ALIADO">Vendedor</option></select>
+    <div id="bloque-vendedor" class="oculto">
+      <div class="msg-info">Tu cuenta de vendedor se verifica antes de poder publicar productos.</div>
+      <label>Nombre comercial de tu negocio</label><input id="nombreComercial"/>
+      <div class="fila">
+        <div><label>RFC</label><input id="rfc" maxlength="13" style="text-transform:uppercase"/></div>
+        <div><label>% de convenio con JJM</label><input type="number" id="convenio" min="0" max="100" step="0.5" value="10"/></div>
+      </div>
+      <label>Causa social que apoyas <small>(opcional)</small></label>
+      <input id="causa" placeholder="Ej. Apoyo a comunidades artesanas"/>
+    </div>
+    <div id="msg"></div>
+    <button class="btn btn-primario btn-bloque" id="btn" type="submit">Registrarme</button>
+  </form>
+  <p class="ayuda" style="margin-top:14px">¿Ya tienes cuenta? <a class="enlace" href="login.html">Inicia sesión</a></p>
+</div>
+
+<div class="panel oculto" id="paso-canal">
+  <h2>Confirma tu cuenta</h2>
+  <p class="ayuda" id="canal-info">¿Cómo quieres recibir tu código de 6 dígitos?</p>
+  <div class="fila">
+    <button class="btn btn-primario btn-bloque" id="btn-canal-correo">✉️ Enviarme por correo</button>
+    <button class="btn btn-verde btn-bloque" id="btn-canal-whatsapp">💬 Enviarme por WhatsApp</button>
+  </div>
+  <p class="ayuda" id="sin-telefono" style="margin-top:8px">No escribiste un teléfono, así que solo puedes recibirlo por correo.</p>
+  <div id="canalmsg"></div>
+</div>
+
+<div class="panel oculto" id="paso-pin">
+  <h2>Escribe tu código</h2>
+  <p id="pin-info" class="ayuda"></p>
+  <label>Código de 6 dígitos</label>
+  <input id="codigo" inputmode="numeric" maxlength="6" placeholder="000000" style="text-align:center;font-size:1.4rem;letter-spacing:6px"/>
+  <div id="pinmsg"></div>
+  <button class="btn btn-primario btn-bloque" id="btn-verificar" style="margin-top:12px">Confirmar cuenta</button>
+  <p class="ayuda" style="margin-top:14px;text-align:center">¿No te llegó? <a href="#" class="enlace" id="reenviar-correo">Reenviar por correo</a> · <a href="#" class="enlace" id="reenviar-whatsapp">Reenviar por WhatsApp</a></p>
+</div>
+
+</main>
+<div id="jjm-footer"></div>
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/carrito.js"></script>
+<script src="js/chatbot.js"></script>
+<script>
+
+document.getElementById("rol").onchange = (e) =>
+  document.getElementById("bloque-vendedor").classList.toggle("oculto", e.target.value !== "ALIADO");
+
+let correoRegistrado = "", hayTelefono = false;
+
+function mostrarPasoCanal() {
+  document.getElementById("paso-datos").classList.add("oculto");
+  document.getElementById("paso-pin").classList.add("oculto");
+  document.getElementById("paso-canal").classList.remove("oculto");
+  document.getElementById("btn-canal-whatsapp").classList.toggle("oculto", !hayTelefono);
+  document.getElementById("sin-telefono").classList.toggle("oculto", hayTelefono);
+}
+
+document.getElementById("form-reg").onsubmit = async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById("msg"); const btn = document.getElementById("btn");
+  const rol = document.getElementById("rol").value;
+  const telefono = document.getElementById("telefono").value.trim();
+  const body = {
+    nombre: document.getElementById("nombre").value.trim(), apellidos: document.getElementById("apellidos").value.trim(),
+    correo: document.getElementById("correo").value.trim(), telefono,
+    password: document.getElementById("password").value, rol,
+  };
+  if (rol === "ALIADO") {
+    body.nombreComercial = document.getElementById("nombreComercial").value.trim();
+    body.rfc = document.getElementById("rfc").value.trim().toUpperCase();
+    body.porcentajeConvenio = Number(document.getElementById("convenio").value);
+    body.causaSocial = document.getElementById("causa").value.trim() || null;
+  }
+  btn.disabled = true;
+  try {
+    await ApiClient.post("/auth/registro", body);
+    correoRegistrado = body.correo;
+    hayTelefono = !!telefono;
+    mostrarPasoCanal();
+  } catch (err) { JJM.msg(msg, "error", err.message); btn.disabled = false; }
+};
+
+async function pedirCodigo(ruta) {
+  const m = document.getElementById("canalmsg");
+  document.querySelectorAll("#paso-canal button").forEach((b) => (b.disabled = true));
+  JJM.msg(m, "info", "Enviando...");
+  try {
+    const r = await ApiClient.post(ruta, { correo: correoRegistrado });
+    document.getElementById("pin-info").textContent = r.mensaje;
+    document.getElementById("paso-canal").classList.add("oculto");
+    document.getElementById("paso-pin").classList.remove("oculto");
+    document.getElementById("codigo").focus();
+  } catch (err) { JJM.msg(m, "error", err.message); }
+  document.querySelectorAll("#paso-canal button").forEach((b) => (b.disabled = false));
+}
+document.getElementById("btn-canal-correo").onclick = () => pedirCodigo("/auth/registro/codigo-correo");
+document.getElementById("btn-canal-whatsapp").onclick = () => pedirCodigo("/auth/registro/codigo-whatsapp");
+
+async function verificar() {
+  const pm = document.getElementById("pinmsg"); const btn = document.getElementById("btn-verificar");
+  const codigo = document.getElementById("codigo").value.trim();
+  if (codigo.length !== 6) { JJM.msg(pm, "error", "El código debe tener 6 dígitos."); return; }
+  btn.disabled = true;
+  try {
+    const r = await ApiClient.post("/auth/registro/verificar", { correo: correoRegistrado, codigo });
+    JJM.msg(pm, "ok", r.mensaje || "¡Cuenta confirmada! Redirigiendo para que inicies sesión...");
+    setTimeout(() => (location.href = "login.html"), 1600);
+  } catch (err) { JJM.msg(pm, "error", err.message); btn.disabled = false; }
+}
+document.getElementById("btn-verificar").onclick = verificar;
+document.getElementById("codigo").addEventListener("keydown", (e) => { if (e.key === "Enter") verificar(); });
+document.getElementById("reenviar-correo").onclick = (e) => { e.preventDefault(); pedirCodigoDesdePin("/auth/registro/codigo-correo"); };
+document.getElementById("reenviar-whatsapp").onclick = (e) => { e.preventDefault(); pedirCodigoDesdePin("/auth/registro/codigo-whatsapp"); };
+async function pedirCodigoDesdePin(ruta) {
+  const pm = document.getElementById("pinmsg");
+  try { const r = await ApiClient.post(ruta, { correo: correoRegistrado }); JJM.msg(pm, "info", r.mensaje); }
+  catch (err) { JJM.msg(pm, "error", err.message); }
+}
+
+// Si venimos desde el login con una cuenta pendiente de confirmar (?verificar=correo),
+// saltamos directo a elegir el canal — no hace falta volver a llenar el formulario.
+const verificarDesdeUrl = new URLSearchParams(location.search).get("verificar");
+if (verificarDesdeUrl) {
+  correoRegistrado = decodeURIComponent(verificarDesdeUrl);
+  hayTelefono = true; // no sabemos si tiene teléfono guardado; si no tiene, el backend avisa al intentar WhatsApp
+  document.getElementById("canal-info").textContent = `Confirma la cuenta de ${correoRegistrado}. ¿Cómo quieres recibir tu código?`;
+  mostrarPasoCanal();
+}
+
+</script>
+</body>
+</html>

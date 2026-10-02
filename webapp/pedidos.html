@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Mis pedidos — JJM con Causa</title>
+<link rel="stylesheet" href="css/styles.css"/>
+</head>
+<body data-pagina="pedidos">
+<div id="jjm-header"></div>
+<main>
+
+<div class="contenedor">
+  <h2>📦 Mis pedidos</h2>
+  <div id="msg"></div>
+  <div id="lista"></div>
+</div>
+
+</main>
+<div id="jjm-footer"></div>
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/carrito.js"></script>
+<script src="js/chatbot.js"></script>
+<script>
+
+if (JJM.requiereRol()) cargar();
+const PASOS = [["PENDIENTE", "Preparando"], ["EN_TRANSITO", "En camino"], ["ENTREGADO", "Entregado"]];
+
+function pasos(estatus) {
+  const idx = PASOS.findIndex((p) => p[0] === estatus);
+  return `<div class="paso-envio">${PASOS.map((p, i) => `<span class="paso ${i <= idx ? "hecho" : ""}">${p[1]}</span>`).join("→")}</div>`;
+}
+function detalle(d) {
+  return `<div class="linea" style="box-shadow:none;border:1px solid var(--borde)">
+    <img src="${d.imagen || "data:image/svg+xml;utf8,<svg xmlns=%27http://www.w3.org/2000/svg%27/>"}" alt=""/>
+    <div class="info"><strong>${JJM.esc(d.nombre)}</strong> × ${d.cantidad}
+      <div class="ayuda">Vendedor: ${JJM.esc(d.vendedor)}</div>
+      <div>${d.modalidad === "PROMOCION" ? `<span class="badge badge-temporada">Promoción -${Number(d.porcentajeDescuento)}%</span>` : '<span class="badge badge-nivel">Costo normal</span>'}
+        ${d.fundacionBeneficiaria ? `<span class="badge badge-causa">💚 ${JJM.esc(d.fundacionBeneficiaria)} · ${JJM.money(d.montoCausa)}</span>` : ""}</div>
+      ${d.envio ? `<div class="ayuda" style="margin-top:6px">🚚 <strong>${JJM.esc(d.envio.paqueteria)}</strong> · Guía: <code>${d.envio.numeroGuia}</code> · Envío ${JJM.money(d.envio.costo)}<br/>
+        Entrega estimada: ${JJM.fecha(d.envio.fechaEstimada)} (hasta ${d.envio.tiempoEntregaDias} días) ${pasos(d.envio.estatus)}</div>` : ""}
+    </div><div class="precio">${JJM.money(d.importe)}</div></div>`;
+}
+function bloqueCalificar(p) {
+  // Punto 8: la calificación al vendedor y la del producto son independientes, y sólo se
+  // habilitan una vez que el cliente recibió lo que compró (ver DetalleView.puedeCalificar).
+  const vistosVendedor = new Set(); const botones = [];
+  p.detalles.forEach((d) => {
+    if (!d.puedeCalificar) return;
+    if (!d.calificadoProducto) botones.push(`<button class="btn btn-secundario btn-chico" data-resena="${d.idProducto}|${JJM.esc(d.nombre)}">⭐ Calificar producto: ${JJM.esc(d.nombre)}</button>`);
+    if (!vistosVendedor.has(d.idAliado)) {
+      vistosVendedor.add(d.idAliado);
+      if (!d.calificadoVendedor) botones.push(`<button class="btn btn-secundario btn-chico" data-cal="${p.id}|${d.idAliado}|${JJM.esc(d.vendedor)}">⭐ Calificar vendedor: ${JJM.esc(d.vendedor)}</button>`);
+    }
+  });
+  return botones.length ? `<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap" id="cal-${p.id}">${botones.join("")}</div>` : "";
+}
+async function cargar() {
+  const msg = document.getElementById("msg");
+  try {
+    const pedidos = await ApiClient.get("/pedidos");
+    document.getElementById("lista").innerHTML = pedidos.length ? pedidos.map((p) => `
+      <div class="pedido"><div class="pedido-cab">
+        <div><strong>Pedido #${p.id}</strong> · ${JJM.fecha(p.fecha)} <span class="estado ${p.estatus}">${p.estatus}</span></div>
+        <div>Productos ${JJM.money(p.subtotal)} + Envío ${JJM.money(p.costoEnvio)} = <strong>${JJM.money(p.total)}</strong></div></div>
+        ${p.direccionEnvio ? `<div class="ayuda">📍 ${JJM.esc(p.direccionEnvio)} C.P. ${JJM.esc(p.cpEnvio)}</div>` : ""}
+        ${p.detalles.map(detalle).join("")}
+        ${p.montoCausa > 0 ? `<div class="nota-causa">💚 En este pedido se donaron ${JJM.money(p.montoCausa)} a asociaciones / fundaciones.</div>` : ""}
+        <div style="margin-top:10px">
+          ${["PAGADO", "ENVIADO", "ENTREGADO"].includes(p.estatus)
+            ? `<a class="btn btn-primario btn-chico" href="factura.html?pedido=${p.id}">${p.facturado ? "Ver factura" : "🧾 Solicitar factura"}</a>` : ""}
+        </div>
+        ${bloqueCalificar(p)}
+      </div>`).join("") : `<div class="tarjeta">Aún no tienes pedidos. <a class="enlace" href="index.html">Explora el catálogo</a></div>`;
+    document.querySelectorAll("[data-cal]").forEach((b) => (b.onclick = () => formCalificar(b)));
+    document.querySelectorAll("[data-resena]").forEach((b) => (b.onclick = () => formResena(b)));
+  } catch (e) { JJM.msg(msg, "error", e.message); }
+}
+function formEstrellas(titulo, alGuardar) {
+  const cont = document.createElement("div"); let nota = 0;
+  cont.className = "tarjeta"; cont.style.cssText = "border:1px solid var(--borde);margin-top:8px;max-width:360px";
+  cont.innerHTML = `<strong>${titulo}</strong>
+    <div class="estrellas-input" id="est">${[1, 2, 3, 4, 5].map((n) => `<span data-n="${n}">★</span>`).join("")}</div>
+    <textarea id="com" placeholder="Cuéntanos tu experiencia (opcional)"></textarea>
+    <div id="cal-msg"></div><button class="btn btn-primario btn-chico" id="enviar-cal">Enviar calificación</button>`;
+  cont.querySelectorAll("#est span").forEach((s) => (s.onclick = () => {
+    nota = Number(s.dataset.n); cont.querySelectorAll("#est span").forEach((x) => x.classList.toggle("on", Number(x.dataset.n) <= nota)); }));
+  cont.querySelector("#enviar-cal").onclick = async () => {
+    const m = cont.querySelector("#cal-msg");
+    if (!nota) { JJM.msg(m, "error", "Elige de 1 a 5 estrellas."); return; }
+    try { await alGuardar(nota, cont.querySelector("#com").value.trim()); cont.innerHTML = `<div class="msg-ok">¡Gracias por tu calificación!</div>`; }
+    catch (e) { JJM.msg(m, "error", e.message); }
+  };
+  return cont;
+}
+function formCalificar(btn) {
+  const [idPedido, idAliado, nombre] = btn.dataset.cal.split("|");
+  const cont = formEstrellas(`¿Cómo te fue con ${nombre}?`, (nota, comentario) =>
+    ApiClient.post("/calificaciones", { idPedido: Number(idPedido), idAliado: Number(idAliado), calificacion: nota, comentario }));
+  btn.replaceWith(cont);
+}
+function formResena(btn) {
+  const [idProducto, nombre] = btn.dataset.resena.split("|");
+  const cont = formEstrellas(`¿Cómo calificarías "${nombre}"?`, (nota, comentario) =>
+    ApiClient.post("/resenas", { idProducto: Number(idProducto), calificacion: nota, comentario }));
+  btn.replaceWith(cont);
+}
+
+</script>
+</body>
+</html>

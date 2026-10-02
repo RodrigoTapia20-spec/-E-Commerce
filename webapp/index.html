@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inicio — JJM Tecnologías Innovadoras</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body data-pagina="inicio">
+<div id="jjm-header"></div>
+<main>
+
+<section class="hero"><h1>Compra con causa 🤝</h1><p>Productos y servicios de aliados sociales. Elige entre costo normal o promociones de temporada.</p></section>
+<div class="contenedor">
+  <div class="chips" id="chips"></div>
+  <div id="bloque-promos" class="oculto"><h2 class="titulo-seccion" id="promos">🎁 Campañas vigentes</h2><div class="grid-productos" id="grid-promos"></div></div>
+  <h2 class="titulo-seccion" id="titulo-cat">Catálogo</h2>
+  <div class="grid-productos" id="grid"></div>
+</div>
+</main>
+<div id="jjm-footer"></div>
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/carrito.js"></script>
+<script src="js/chatbot.js"></script>
+<script>
+
+const q = new URLSearchParams(location.search);
+let categoria = q.get("categoria"), buscar = q.get("buscar");
+function card(p){
+  const pr = p.promocion;
+  const precio = pr ? `<span class="precio precio-promo">${JJM.money(pr.precioPromocional)}</span><span class="precio-tachado">${JJM.money(p.precio)}</span>` : `<span class="precio">${JJM.money(p.precio)}</span>`;
+  return `<a class="card-producto" href="producto.html?id=${p.id}">
+    ${pr ? `<span class="etiqueta-desc">-${Number(pr.porcentajeDescuento)}%</span>` : ""}
+    <img class="foto" src="${JJM.imagenPrincipal(p)}" alt="${JJM.esc(p.nombre)}" loading="lazy"/>
+    <div class="nombre">${JJM.esc(p.nombre)}</div>${precio}
+    ${JJM.estrellas(p.aliado.calificacionPromedio, p.aliado.totalCalificaciones)}
+    <div>
+      ${p.verificadoIa ? '<span class="badge badge-ia">✔ Verificado IA</span>' : ""}
+      ${pr && pr.esCausaSocial ? `<span class="badge badge-causa">🤝 ${JJM.esc(pr.fundacionBeneficiaria)}</span>` : ""}
+      ${pr ? `<span class="badge badge-temporada">${JJM.temporada(pr.tipoTemporada)}</span>` : ""}
+      <span class="badge badge-nivel">${p.aliado.nivel}</span>
+    </div>
+    <small style="color:var(--txt-2)">Vende: ${JJM.esc(p.aliado.nombreComercial.toUpperCase())}</small>
+    <span class="btn btn-primario btn-bloque">Ver opciones</span></a>`;
+}
+async function cargar(){
+  try{
+    const cats = await ApiClient.get("/categorias");
+    document.getElementById("chips").innerHTML = `<span class="chip ${!categoria&&!buscar?'activa':''}" data-c="">Todo</span>` +
+      cats.map(c=>`<span class="chip ${categoria==c.id?'activa':''}" data-c="${c.id}">${JJM.esc(c.nombre)}</span>`).join("");
+    document.querySelectorAll(".chip").forEach(ch=>ch.onclick=()=>{ location.href = ch.dataset.c ? "index.html?categoria="+ch.dataset.c : "index.html"; });
+    const url = "/productos" + (buscar ? "?buscar="+encodeURIComponent(buscar) : categoria ? "?categoria="+categoria : "");
+    const prods = await ApiClient.get(url);
+    document.getElementById("titulo-cat").textContent = buscar ? `Resultados para "${buscar}"` : "Catálogo";
+    document.getElementById("grid").innerHTML = prods.length ? prods.map(card).join("") : '<p>No encontramos productos. Cuando un vendedor publique, aparecerán aquí.</p>';
+    const promos = prods.filter(p=>p.promocion);
+    if(!buscar && !categoria && promos.length){ document.getElementById("bloque-promos").classList.remove("oculto"); document.getElementById("grid-promos").innerHTML = promos.map(card).join(""); }
+  }catch(e){ document.getElementById("grid").innerHTML = `<div class="msg-error">${JJM.esc(e.message)}</div>`; }
+}
+if(buscar) document.addEventListener("DOMContentLoaded",()=>{ const i=document.getElementById("input-buscar"); if(i) i.value=buscar; });
+cargar();
+</script>
+</body>
+</html>

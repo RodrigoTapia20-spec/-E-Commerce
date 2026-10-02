@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Producto — JJM Tecnologías Innovadoras</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body data-pagina="producto">
+<div id="jjm-header"></div>
+<main>
+
+<div class="contenedor" id="raiz"><p>Cargando...</p></div>
+</main>
+<div id="jjm-footer"></div>
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/carrito.js"></script>
+<script src="js/chatbot.js"></script>
+<script>
+
+const id = new URLSearchParams(location.search).get("id");
+let P, modalidad = "NORMAL", idx = 0;
+function envioDe(q, cant){ return q.costoBase + q.costoPorKg * (P.pesoKg||0.5) * cant; }
+function galeria(){
+  const m = P.media[idx];
+  document.getElementById("visor").innerHTML = m.tipo==="VIDEO" ? `<video src="${m.url}" controls ${m.conAudio?"":"muted"} playsinline></video>` : `<img src="${m.url}" alt="">`;
+  document.querySelectorAll(".miniatura").forEach((el,i)=>el.classList.toggle("activa",i===idx));
+}
+function recalcular(){
+  const cant = Number(document.getElementById("cant").value)||1;
+  const unit = modalidad==="PROMOCION" && P.promocion ? P.promocion.precioPromocional : P.precio;
+  let html = `<div class="l"><span>Producto (${cant} × ${JJM.money(unit)})</span><strong>${JJM.money(unit*cant)}</strong></div>`;
+  let env = 0;
+  if(P.tipo==="PRODUCTO"){
+    const q = P.paqueterias.find(x=>x.id==document.getElementById("paq").value);
+    if(q){ env = envioDe(q,cant); html += `<div class="l"><span>Envío ${JJM.esc(q.nombre)} (${q.diasMin}-${q.diasMax} días)</span><strong>${JJM.money(env)}</strong></div>`; }
+  }
+  html += `<div class="l total"><span>Total</span><span>${JJM.money(unit*cant+env)}</span></div>`;
+  document.getElementById("resumen").innerHTML = html;
+}
+async function init(){
+  try{ P = await ApiClient.get("/productos/"+id); }catch(e){ document.getElementById("raiz").innerHTML=`<div class="msg-error">${JJM.esc(e.message)}</div>`; return; }
+  const pr = P.promocion;
+  document.title = P.nombre + " — JJM";
+  const cal = await ApiClient.get("/calificaciones/aliado/"+P.aliado.id).catch(()=>[]);
+  const resenas = await ApiClient.get("/resenas/producto/"+P.id).catch(()=>[]);
+  document.getElementById("raiz").innerHTML = `
+  <div class="detalle-grid">
+    <div><div class="galeria-visor" id="visor"></div>
+      <div class="miniaturas">${P.media.map((m,i)=>`<div class="mini-wrap" data-i="${i}">${m.tipo==="VIDEO"?'<video class="miniatura" src="'+m.url+'#t=0.5" muted preload="metadata"></video><span class="play">▶</span>':'<img class="miniatura" src="'+m.url+'">'}</div>`).join("")}</div></div>
+    <div class="tarjeta">
+      <h1>${JJM.esc(P.nombre)}</h1>
+      <div>${P.verificadoIa?'<span class="badge badge-ia">✔ Verificado IA</span>':""}<span class="badge badge-nivel">Vendedor ${P.aliado.nivel}</span>${P.aliado.causaSocial?`<span class="badge badge-causa">🤝 ${JJM.esc(P.aliado.causaSocial)}</span>`:""}</div>
+      <p>${JJM.estrellas(P.aliado.calificacionPromedio,P.aliado.totalCalificaciones)} · Vende: <strong>${JJM.esc(P.aliado.nombreComercial.toUpperCase())}</strong></p>
+      <p style="white-space:pre-wrap">${JJM.esc(P.descripcion||"")}</p>
+      <h3>¿Cómo quieres comprarlo?</h3>
+      <label class="opcion-compra elegida" id="op-normal"><input type="radio" name="mod" value="NORMAL" checked>
+        <div><strong>Costo normal</strong><br><span class="precio">${JJM.money(P.precio)}</span></div></label>
+      ${pr?`<label class="opcion-compra" id="op-promo"><input type="radio" name="mod" value="PROMOCION">
+        <div><strong>${JJM.temporada(pr.tipoTemporada)}: ${JJM.esc(pr.titulo)}</strong> <span class="badge badge-causa">-${Number(pr.porcentajeDescuento)}%</span><br>
+        <span class="precio precio-promo">${JJM.money(pr.precioPromocional)}</span><span class="precio-tachado">${JJM.money(P.precio)}</span>
+        ${pr.esCausaSocial?`<div class="nota-causa">🤝 Con esta opción, el ${Number(pr.porcentajeDonacion)}% de tu compra apoya a <strong>${JJM.esc(pr.fundacionBeneficiaria)}</strong>.</div>`:""}
+        <small>Vigente hasta ${JJM.fecha(pr.fechaFin)}</small></div></label>`:""}
+      ${P.tipo==="PRODUCTO"?`<div class="caja-envio"><label style="margin-top:0">Paquetería</label>
+        <select id="paq">${P.paqueterias.map(q=>`<option value="${q.id}">${JJM.esc(q.nombre)} — ${q.diasMin}-${q.diasMax} días — desde ${JJM.money(envioDe(q,1))}</option>`).join("")}</select></div>`:'<div class="msg-info">Servicio: no requiere envío.</div>'}
+      <label>Cantidad ${P.tipo==="PRODUCTO"?`<small>(disponibles: ${P.existencia})</small>`:""}</label>
+      <input type="number" id="cant" min="1" max="${P.tipo==="PRODUCTO"?P.existencia:99}" value="1" style="max-width:110px">
+      <div class="resumen tarjeta" style="margin-top:12px;background:#fafafa" id="resumen"></div>
+      <button class="btn btn-primario btn-bloque" id="btn-add" ${P.tipo==="PRODUCTO"&&P.existencia<1?"disabled":""}>${P.tipo==="PRODUCTO"&&P.existencia<1?"Agotado":"Agregar al carrito"}</button>
+      <div id="msg"></div>
+    </div>
+  </div>
+  <h2 class="titulo-seccion">Opiniones sobre el producto</h2>
+  <div class="tarjeta">${resenas.length?resenas.slice(0,8).map(c=>`<p>${"★".repeat(c.calificacion)}${"☆".repeat(5-c.calificacion)} <strong>${JJM.esc(c.cliente)}</strong> — ${JJM.fecha(c.fecha)}<br>${JJM.esc(c.comentario||"")}</p>`).join("<hr>"):"Este producto aún no tiene opiniones. Cómpralo y sé el primero en calificarlo cuando lo recibas."}</div>
+  <h2 class="titulo-seccion">Opiniones sobre el vendedor</h2>
+  <div class="tarjeta">${cal.length?cal.slice(0,8).map(c=>`<p>${JJM.estrellas(c.calificacion,1).replace(/<small>.*<\/small>/,"")} <strong>${JJM.esc(c.cliente)}</strong> — ${JJM.fecha(c.fecha)}<br>${JJM.esc(c.comentario||"")}</p>`).join("<hr>"):"Este vendedor aún no tiene opiniones."}</div>`;
+  galeria();
+  document.querySelectorAll(".mini-wrap").forEach(el=>el.onclick=()=>{ idx=Number(el.dataset.i); galeria(); });
+  document.querySelectorAll("input[name=mod]").forEach(r=>r.onchange=()=>{ modalidad=r.value;
+    document.getElementById("op-normal").classList.toggle("elegida",modalidad==="NORMAL");
+    const op=document.getElementById("op-promo"); if(op) op.classList.toggle("elegida",modalidad==="PROMOCION"); recalcular(); });
+  document.getElementById("cant").oninput = recalcular;
+  const paq=document.getElementById("paq"); if(paq) paq.onchange = recalcular;
+  recalcular();
+  document.getElementById("btn-add").onclick = ()=>{
+    const cant = Math.max(1, Number(document.getElementById("cant").value)||1);
+    if(P.tipo==="PRODUCTO" && cant>P.existencia){ JJM.msg(document.getElementById("msg"),"error","Solo hay "+P.existencia+" disponibles."); return; }
+    const q = P.tipo==="PRODUCTO" ? P.paqueterias.find(x=>x.id==document.getElementById("paq").value) : null;
+    Carrito.agregar(P,{modalidad,paqueteria:q,cantidad:cant});
+    JJM.toast("Agregado al carrito 🛒");
+  };
+}
+init();
+</script>
+</body>
+</html>

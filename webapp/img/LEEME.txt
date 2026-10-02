@@ -1,0 +1,4 @@
+Coloca aquí el logo de la empresa con el nombre EXACTO:  logo.png
+(PNG, cuadrado o rectangular, idealmente 512 px de alto, fondo transparente o blanco).
+Aparece automáticamente en el encabezado de todas las páginas y como ícono de la pestaña.
+Si el archivo no existe, la web muestra el texto "JJM" en su lugar.

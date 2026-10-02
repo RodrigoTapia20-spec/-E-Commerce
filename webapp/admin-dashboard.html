@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Panel de administrador — JJM con Causa</title>
+<link rel="stylesheet" href="css/styles.css"/>
+</head>
+<body data-pagina="admin">
+<div id="jjm-header"></div>
+<main>
+
+<div class="contenedor">
+  <div class="dash">
+    <aside class="sidebar">
+      <a data-tab="ventas" class="activa">📊 Ventas y donaciones</a>
+      <a data-tab="vendedores">✅ Vendedores por verificar</a>
+      <a data-tab="usuarios">👥 Usuarios y roles</a>
+      <a data-tab="productos">📦 Productos</a>
+      <a data-tab="quejas">💬 Quejas y sugerencias</a>
+      <a data-tab="ranking">🏆 Ranking de vendedores</a>
+    </aside>
+    <section>
+      <div id="msg"></div>
+      <div id="tab-ventas"><h2>Ventas generales</h2><div class="kpis" id="kpis"></div></div>
+      <div id="tab-vendedores" class="oculto"><h2>Vendedores pendientes de verificación</h2><div class="scroll-x" id="t-vendedores"></div></div>
+      <div id="tab-usuarios" class="oculto">
+        <h2>Usuarios y roles</h2>
+        <form id="form-usuario" class="tarjeta">
+          <strong>Crear cuenta interna</strong> <span class="ayuda">(Distribuidor o Administrador)</span>
+          <div class="fila"><div><label>Nombre</label><input id="u-nombre" required/></div><div><label>Apellidos</label><input id="u-apellidos" required/></div></div>
+          <div class="fila"><div><label>Correo</label><input type="email" id="u-correo" required/></div>
+            <div><label>Contraseña inicial (mín. 8)</label><input type="text" id="u-pass" minlength="8" required/></div></div>
+          <label>Rol</label><select id="u-rol"><option value="DISTRIBUIDOR">Distribuidor</option><option value="ADMIN">Administrador</option></select>
+          <div id="umsg"></div><button class="btn btn-primario btn-bloque" type="submit">Crear cuenta</button>
+        </form>
+        <div class="titulo-seccion">Todas las cuentas</div>
+        <div class="chips" id="chips-rol">
+          <span class="chip activa" data-rol="">Todos</span>
+          <span class="chip" data-rol="ADMIN">Administrador</span>
+          <span class="chip" data-rol="DISTRIBUIDOR">Distribuidor</span>
+          <span class="chip" data-rol="ALIADO">Vendedor</span>
+          <span class="chip" data-rol="CLIENTE">Cliente</span>
+        </div>
+        <input id="buscar-usuario" placeholder="🔎 Buscar por nombre o correo..." style="max-width:360px;margin-bottom:10px"/>
+        <div class="scroll-x" id="t-usuarios"></div>
+      </div>
+      <div id="tab-productos" class="oculto">
+        <h2>Productos y servicios publicados</h2>
+        <input id="buscar-producto" placeholder="🔎 Buscar por nombre o vendedor..." style="max-width:360px;margin-bottom:10px"/>
+        <div class="scroll-x" id="t-productos"></div>
+      </div>
+      <div id="tab-quejas" class="oculto"><h2>Quejas y sugerencias abiertas</h2><div id="t-quejas"></div></div>
+      <div id="tab-ranking" class="oculto"><h2>Ranking de vendedores</h2><div class="scroll-x" id="t-ranking"></div></div>
+    </section>
+  </div>
+</div>
+
+</main>
+<div id="jjm-footer"></div>
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/carrito.js"></script>
+<script src="js/chatbot.js"></script>
+<script>
+
+const TABS = ["ventas", "vendedores", "usuarios", "productos", "quejas", "ranking"];
+function tab(n) {
+  TABS.forEach((t) => document.getElementById("tab-" + t).classList.toggle("oculto", t !== n));
+  document.querySelectorAll(".sidebar a").forEach((a) => a.classList.toggle("activa", a.dataset.tab === n));
+  ({ ventas, vendedores, usuarios, productos, quejas, ranking })[n]();
+}
+document.querySelectorAll(".sidebar a").forEach((a) => (a.onclick = () => tab(a.dataset.tab)));
+const err = (e) => JJM.msg(document.getElementById("msg"), "error", e.message);
+
+async function ventas() {
+  try {
+    const r = await ApiClient.get("/reportes/ventas-general");
+    document.getElementById("kpis").innerHTML = `
+      <div class="kpi"><div class="valor">${r.totalPedidosPagados}</div><div class="etq">Pedidos pagados</div></div>
+      <div class="kpi"><div class="valor">${JJM.money(r.totalVentas)}</div><div class="etq">Ventas (productos)</div></div>
+      <div class="kpi"><div class="valor">${JJM.money(r.totalEnvios)}</div><div class="etq">Cobrado por envíos</div></div>
+      <div class="kpi"><div class="valor">${JJM.money(r.totalComisionJJM)}</div><div class="etq">Comisión JJM</div></div>
+      <div class="kpi"><div class="valor">${JJM.money(r.totalDonadoACausas)}</div><div class="etq">Donado a causas 💚</div></div>`;
+  } catch (e) { err(e); }
+}
+async function vendedores() {
+  try {
+    const l = await ApiClient.get("/admin/vendedores/pendientes");
+    document.getElementById("t-vendedores").innerHTML = l.length ? `<table class="tabla"><tr><th>Negocio</th><th>Correo</th><th>RFC</th><th>Convenio</th><th></th></tr>` +
+      l.map((a) => `<tr><td>${JJM.esc(a.nombreComercial)}</td><td>${JJM.esc(a.correo)}</td><td>${JJM.esc(a.rfc || "")}</td><td>${Number(a.porcentajeConvenio)}%</td>
+        <td><button class="btn btn-verde btn-chico" data-v="${a.id}|true">Aprobar</button> <button class="btn btn-rojo btn-chico" data-v="${a.id}|false">Rechazar</button></td></tr>`).join("") + "</table>"
+      : '<div class="tarjeta">No hay vendedores pendientes. 🎉</div>';
+    document.querySelectorAll("[data-v]").forEach((b) => (b.onclick = async () => {
+      const [id, ap] = b.dataset.v.split("|"); try { await ApiClient.patch(`/admin/vendedores/${id}/verificacion?aprobar=${ap}`); vendedores(); } catch (e) { err(e); } }));
+  } catch (e) { err(e); }
+}
+let TODOS_USUARIOS = [], ROL_FILTRO = "", BUSQUEDA_USUARIO = "";
+const NOMBRES_ROL = { ADMIN: "Administrador", DISTRIBUIDOR: "Distribuidor", ALIADO: "Vendedor", CLIENTE: "Cliente" };
+async function usuarios() {
+  try {
+    TODOS_USUARIOS = await ApiClient.get("/admin/usuarios");
+    pintarUsuarios();
+  } catch (e) { err(e); }
+}
+function pintarUsuarios() {
+  let l = ROL_FILTRO ? TODOS_USUARIOS.filter((u) => u.rol === ROL_FILTRO) : TODOS_USUARIOS;
+  if (BUSQUEDA_USUARIO) {
+    const q = BUSQUEDA_USUARIO.toLowerCase();
+    l = l.filter((u) => (u.nombre + " " + u.apellidos).toLowerCase().includes(q) || u.correo.toLowerCase().includes(q));
+  }
+  document.getElementById("t-usuarios").innerHTML = l.length ? `<table class="tabla"><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Estatus</th><th></th></tr>` +
+    l.map((u) => `<tr><td>${JJM.esc(u.nombre + " " + u.apellidos)}</td><td>${JJM.esc(u.correo)}</td><td>${NOMBRES_ROL[u.rol] || u.rol}</td><td><span class="estado ${u.estatus}">${u.estatus}</span></td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-secundario btn-chico" data-u="${u.id}|${u.estatus === "ACTIVO" ? "SUSPENDIDO" : "ACTIVO"}" data-n="${JJM.esc(u.nombre + " " + u.apellidos)}">${u.estatus === "ACTIVO" ? "Suspender" : "Activar"}</button>
+        <button class="btn btn-rojo btn-chico" data-del-u="${u.id}" data-n="${JJM.esc(u.nombre + " " + u.apellidos)}">Eliminar Cuenta</button>
+      </td></tr>`).join("") + "</table>"
+    : '<div class="tarjeta">No hay cuentas que coincidan.</div>';
+  document.querySelectorAll("[data-u]").forEach((b) => (b.onclick = async () => {
+    const [id, est] = b.dataset.u.split("|");
+    if (est === "SUSPENDIDO" && !confirm(`¿Estás seguro/a de suspender la cuenta a ${b.dataset.n}?`)) return;
+    try { await ApiClient.patch(`/admin/usuarios/${id}/estatus?estatus=${est}`); usuarios(); } catch (e) { err(e); } }));
+  document.querySelectorAll("[data-del-u]").forEach((b) => (b.onclick = async () => {
+    if (!confirm(`¿Estás seguro/a de que deseas eliminar a ${b.dataset.n}?`)) return;
+    try { await ApiClient.request(`/admin/usuarios/${b.dataset.delU}`, { method: "DELETE" }); JJM.toast("Cuenta eliminada."); usuarios(); }
+    catch (e) { err(e); } }));
+}
+document.querySelectorAll("#chips-rol .chip").forEach((c) => (c.onclick = () => {
+  document.querySelectorAll("#chips-rol .chip").forEach((x) => x.classList.remove("activa"));
+  c.classList.add("activa"); ROL_FILTRO = c.dataset.rol; pintarUsuarios();
+}));
+document.getElementById("buscar-usuario").oninput = (e) => { BUSQUEDA_USUARIO = e.target.value.trim(); pintarUsuarios(); };
+document.getElementById("form-usuario").onsubmit = async (e) => {
+  e.preventDefault(); const m = document.getElementById("umsg");
+  try {
+    await ApiClient.post("/admin/usuarios", { nombre: document.getElementById("u-nombre").value.trim(), apellidos: document.getElementById("u-apellidos").value.trim(),
+      correo: document.getElementById("u-correo").value.trim(), password: document.getElementById("u-pass").value, rol: document.getElementById("u-rol").value });
+    JJM.msg(m, "ok", "Cuenta creada. Compárteles su correo y contraseña inicial — al intentar entrar por primera vez, el sistema le va a pedir confirmar su cuenta con un código (por correo o WhatsApp)."); e.target.reset(); usuarios();
+  } catch (x) { JJM.msg(m, "error", x.message); }
+};
+let TODOS_PRODUCTOS = [], BUSQUEDA_PRODUCTO = "";
+async function productos() {
+  try { TODOS_PRODUCTOS = await ApiClient.get("/admin/productos"); pintarProductosAdmin(); } catch (e) { err(e); }
+}
+function pintarProductosAdmin() {
+  let l = TODOS_PRODUCTOS;
+  if (BUSQUEDA_PRODUCTO) {
+    const q = BUSQUEDA_PRODUCTO.toLowerCase();
+    l = l.filter((p) => p.nombre.toLowerCase().includes(q) || p.aliado.nombreComercial.toLowerCase().includes(q));
+  }
+  document.getElementById("t-productos").innerHTML = l.length ? `<table class="tabla"><tr><th></th><th>Producto</th><th>Vendedor</th><th>Precio</th><th>Estatus</th><th></th></tr>` +
+    l.map((p) => `<tr><td><img src="${JJM.imagenPrincipal(p)}" width="44" height="44" style="object-fit:cover;border-radius:6px" alt=""/></td>
+      <td>${JJM.esc(p.nombre)}</td><td>${JJM.esc(p.aliado.nombreComercial)}</td><td>${JJM.money(p.precio)}</td>
+      <td><span class="estado ${p.estatus}">${p.estatus}</span></td>
+      <td><button class="btn btn-rojo btn-chico" data-del-p="${p.id}" data-n="${JJM.esc(p.nombre)}">Eliminar</button></td></tr>`).join("") + "</table>"
+    : '<div class="tarjeta">No hay productos que coincidan.</div>';
+  document.querySelectorAll("[data-del-p]").forEach((b) => (b.onclick = async () => {
+    if (!confirm(`¿Estás seguro/a de eliminar "${b.dataset.n}"? Esta acción no se puede deshacer.`)) return;
+    try { await ApiClient.request(`/admin/productos/${b.dataset.delP}`, { method: "DELETE" }); JJM.toast("Producto eliminado."); productos(); }
+    catch (e) { err(e); } }));
+}
+document.getElementById("buscar-producto").oninput = (e) => { BUSQUEDA_PRODUCTO = e.target.value.trim(); pintarProductosAdmin(); };
+
+async function quejas() {
+  try {
+    const l = await ApiClient.get("/quejas/admin/abiertas");
+    document.getElementById("t-quejas").innerHTML = l.length ? l.map((q) => `<div class="tarjeta" style="margin-bottom:10px">
+      <strong>${JJM.esc(q.asunto)}</strong> <small>${q.tipo} · ${JJM.esc(q.usuario)} · ${JJM.fecha(q.fechaCreacion)}</small><p>${JJM.esc(q.descripcion)}</p>
+      <input placeholder="Escribe tu respuesta" id="r-${q.id}"/><button class="btn btn-verde btn-chico" style="margin-top:8px" data-r="${q.id}">Responder y resolver</button></div>`).join("")
+      : '<div class="tarjeta">No hay quejas abiertas. 🎉</div>';
+    document.querySelectorAll("[data-r]").forEach((b) => (b.onclick = async () => {
+      const t = document.getElementById("r-" + b.dataset.r).value.trim(); if (!t) return JJM.toast("Escribe una respuesta.");
+      try { await ApiClient.patch(`/quejas/admin/${b.dataset.r}/responder?estatus=RESUELTA&respuesta=${encodeURIComponent(t)}`); quejas(); } catch (e) { err(e); } }));
+  } catch (e) { err(e); }
+}
+async function ranking() {
+  try {
+    const l = await ApiClient.get("/calificaciones/ranking");
+    document.getElementById("t-ranking").innerHTML = `<table class="tabla"><tr><th>#</th><th>Vendedor</th><th>Promedio</th><th>Nivel</th></tr>` +
+      l.map((a, i) => `<tr><td>${i + 1}</td><td>${JJM.esc(a.nombreComercial)}</td><td>${JJM.estrellas(a.calificacionPromedio, a.totalCalificaciones)}</td><td>${a.nivel}</td></tr>`).join("") + "</table>";
+  } catch (e) { err(e); }
+}
+if (JJM.requiereRol("ADMIN")) ventas();
+
+</script>
+</body>
+</html>

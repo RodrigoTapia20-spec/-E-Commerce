@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Iniciar sesión — JJM con Causa</title>
+<link rel="stylesheet" href="css/styles.css"/>
+</head>
+<body data-pagina="login">
+<div id="jjm-header"></div>
+<main>
+
+<div class="panel">
+  <h2>Iniciar sesión</h2>
+  <div id="aviso"></div>
+  <form id="form-login">
+    <label for="correo">Correo electrónico</label>
+    <input type="email" id="correo" required autocomplete="username"/>
+    <label for="password">Contraseña</label>
+    <div class="campo-password">
+      <input type="password" id="password" required autocomplete="current-password"/>
+      <button type="button" class="btn-ojo" onclick="JJM.alternarPassword('password', this)" aria-label="Mostrar contraseña">👁</button>
+    </div>
+    <div class="ayuda" style="margin-top:6px"><a class="enlace" id="link-olvide" href="recuperar-password.html">¿Olvidaste tu contraseña?</a></div>
+    <div id="bloque-2fa" class="oculto">
+      <label for="codigo">Código de verificación (enviado a tu correo)</label>
+      <input type="text" id="codigo" maxlength="6" inputmode="numeric"/>
+    </div>
+    <div id="msg"></div>
+    <button class="btn btn-primario btn-bloque" id="btn" type="submit">Entrar</button>
+  </form>
+  <p class="ayuda" style="margin-top:14px">¿No tienes cuenta? <a class="enlace" href="registro.html">Regístrate</a></p>
+</div>
+
+</main>
+<div id="jjm-footer"></div>
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/carrito.js"></script>
+<script src="js/chatbot.js"></script>
+<script>
+
+// Lleva el correo que ya escribió a "Recuperar contraseña" — no se lo vuelve a pedir ahí.
+document.getElementById("correo").addEventListener("input", (e) => {
+  const c = e.target.value.trim();
+  document.getElementById("link-olvide").href = c ? "recuperar-password.html?correo=" + encodeURIComponent(c) : "recuperar-password.html";
+});
+
+const aviso = sessionStorage.getItem("jjm_aviso");
+if (aviso) { JJM.msg(document.getElementById("aviso"), "info", aviso); sessionStorage.removeItem("jjm_aviso"); }
+let en2fa = false;
+function irSegunRol(rol) {
+  window.location.href = rol === "ALIADO" ? "aliado-dashboard.html" : rol === "ADMIN" ? "admin-dashboard.html"
+    : rol === "DISTRIBUIDOR" ? "distribuidor-dashboard.html" : "index.html";
+}
+document.getElementById("form-login").onsubmit = async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById("msg"); const btn = document.getElementById("btn");
+  btn.disabled = true; JJM.msg(msg, "info", "Verificando...");
+  try {
+    const correo = document.getElementById("correo").value.trim();
+    const r = en2fa
+      ? await ApiClient.post("/auth/verificar-codigo", { correo, codigo: document.getElementById("codigo").value.trim() })
+      : await ApiClient.post("/auth/login", { correo, password: document.getElementById("password").value });
+    if (r.requiere2fa) {
+      en2fa = true; document.getElementById("bloque-2fa").classList.remove("oculto");
+      JJM.msg(msg, "info", "Te enviamos un código a tu correo. Escríbelo para continuar.");
+    } else { ApiClient.guardarSesion(r); irSegunRol(r.rol); }
+  } catch (err) {
+    if (/confirma tu cuenta/i.test(err.message)) {
+      const correo = encodeURIComponent(document.getElementById("correo").value.trim());
+      JJM.msg(msg, "error", err.message + " ");
+      document.getElementById("msg").innerHTML += `<a class="enlace" href="registro.html?verificar=${correo}">Confirmar mi cuenta ahora →</a>`;
+    } else { JJM.msg(msg, "error", err.message); }
+  }
+  btn.disabled = false;
+};
+
+</script>
+</body>
+</html>
