@@ -1,0 +1,48 @@
+services:
+  db:
+    build: ./database
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: jjm_ecommerce
+      MYSQL_USER: jjm_app
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      TZ: America/Mexico_City
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/jjm_ecommerce?useSSL=false&serverTimezone=America/Mexico_City&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: jjm_app
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      APP_ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      WEBAPP_URL: ${APP_URL}
+      CORS_ORIGINS: ${APP_URL}
+      UPLOADS_DIR: /app/uploads
+      TWOFACTOR_ENABLED: "false"
+      TZ: America/Mexico_City
+    volumes:
+      - uploads:/app/uploads
+
+  web:
+    build: ./webapp
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+volumes:
+  mysql-data:
+  uploads:

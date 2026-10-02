@@ -1,9 +1,9 @@
 /**
  * Cliente de la API REST (Java / Spring Boot). La web y la app móvil usan la MISMA API.
  * Si el backend corre en otra dirección, define antes de cargar este archivo:
- *   <script>window.JJM_API_BASE_URL = "http://192.168.1.50:8080/api";</script>
+ *   <script>window.JJM_API_BASE_URL = ((location.port==='5500'||location.port==='3000')?'http://localhost:8080/api':'/api');</script>
  */
-const API_BASE_URL = window.JJM_API_BASE_URL || "http://localhost:8080/api";
+const API_BASE_URL = window.JJM_API_BASE_URL || ((location.port==='5500'||location.port==='3000')?'http://localhost:8080/api':'/api');
 
 const ApiClient = {
   token: () => localStorage.getItem("jjm_token"),
