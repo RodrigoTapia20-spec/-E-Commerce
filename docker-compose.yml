@@ -39,6 +39,8 @@ services:
 
   web:
     build: ./webapp
+    expose:
+      - "80"
     restart: unless-stopped
     depends_on:
       - backend
