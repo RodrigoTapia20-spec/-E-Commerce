@@ -137,7 +137,6 @@ public class AuthService {
             aliadoRepository.save(aliado);
         }
 
-        correoService.enviarCodigoVerificacionCuenta(usuario.getCorreo(), codigo);
 
         String mensaje = "ALIADO".equals(rolSolicitado)
                 ? "Elige cómo quieres recibir tu código de confirmación. Después de confirmar tu cuenta, el administrador debe aprobar tu cuenta de vendedor antes de que puedas publicar."
